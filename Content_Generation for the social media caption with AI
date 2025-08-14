@@ -1,0 +1,135 @@
+import os
+import google.generativeai as genai
+import tkinter as tk
+from tkinter import scrolledtext, messagebox, filedialog
+from PIL import Image, ImageTk
+
+# Function to configure and initialize the AI model
+def setup_model(api_key, model_name):
+    os.environ['API_KEY'] = api_key
+    if api_key and model_name:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(model_name)
+        if hasattr(model, 'generate_content'):
+            return model
+        else:
+            print("Model initialization failed.")
+            return None
+    else:
+        print("API key or model name is missing.")
+        return None
+
+# Function to generate content
+def generate_post(model, topic, hashtags, audience):
+    if model is None:
+        return "Model not initialized."
+    
+    prompt = f"Create a social media post about '{topic}' with hashtags {hashtags}. The target audience is {audience}."
+    
+    if hasattr(model, 'generate_content'):
+        response = model.generate_content(prompt)
+        if hasattr(response, 'text'):
+            return response.text
+        else:
+            return "Unexpected response format."
+    else:
+        return "Model does not support content generation."
+
+# Function to handle the Generate button click
+def on_generate_click():
+    topic = topic_entry.get()
+    hashtags = hashtags_entry.get()
+    audience = audience_entry.get()
+    
+    if not topic:
+        messagebox.showwarning("Input Error", "Topic cannot be empty.")
+        return
+    
+    response = generate_post(model, topic, hashtags, audience)
+    result_text.delete(1.0, tk.END)
+    result_text.insert(tk.END, response)
+    
+    if uploaded_image:
+        display_image(uploaded_image)
+
+# Function to handle the Save button click
+def on_save_click():
+    content = result_text.get(1.0, tk.END).strip()
+    if not content:
+        messagebox.showwarning("Save Error", "No content to save.")
+        return
+    
+    filename = 'generated_social_media_post.txt'
+    with open(filename, 'w', encoding='utf-8') as file:
+        file.write(content)
+    
+    if uploaded_image:
+        image_filename = 'uploaded_image.png'
+        uploaded_image.save(image_filename)
+        messagebox.showinfo("Save Successful", f"Content and image saved. Image saved to '{image_filename}'.")
+    else:
+        messagebox.showinfo("Save Successful", "Content saved to 'generated_social_media_post.txt'.")
+
+# Function to handle the Upload Image button click
+def on_upload_image():
+    global uploaded_image
+    file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
+    
+    if file_path:
+        uploaded_image = Image.open(file_path)
+        display_image(uploaded_image)
+    else:
+        messagebox.showwarning("Upload Error", "No image selected.")
+
+# Function to display the uploaded image
+def display_image(img):
+    img.thumbnail((250, 250))  # Resize image
+    img_tk = ImageTk.PhotoImage(img)
+    
+    image_label.config(image=img_tk)
+    image_label.image = img_tk  # Keep reference to avoid garbage collection
+
+# Setup GUI
+def setup_gui():
+    global topic_entry, hashtags_entry, audience_entry, result_text, image_label, uploaded_image
+    uploaded_image = None
+    
+    window = tk.Tk()
+    window.title("AI-Based Social Media Post Generator")
+    
+    tk.Label(window, text="Topic:").grid(row=0, column=0, padx=10, pady=5)
+    tk.Label(window, text="Hashtags (comma-separated):").grid(row=1, column=0, padx=10, pady=5)
+    tk.Label(window, text="Target Audience (optional):").grid(row=2, column=0, padx=10, pady=5)
+    
+    topic_entry = tk.Entry(window, width=50)
+    hashtags_entry = tk.Entry(window, width=50)
+    audience_entry = tk.Entry(window, width=50)
+    
+    topic_entry.grid(row=0, column=1, padx=10, pady=5)
+    hashtags_entry.grid(row=1, column=1, padx=10, pady=5)
+    audience_entry.grid(row=2, column=1, padx=10, pady=5)
+    
+    tk.Button(window, text="Generate", command=on_generate_click).grid(row=3, column=0, columnspan=2, pady=10)
+    tk.Button(window, text="Save", command=on_save_click).grid(row=4, column=0, columnspan=2, pady=10)
+    tk.Button(window, text="Upload Image", command=on_upload_image).grid(row=5, column=0, columnspan=2, pady=10)
+    
+    result_text = scrolledtext.ScrolledText(window, width=60, height=20)
+    result_text.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
+    
+    image_label = tk.Label(window)
+    image_label.grid(row=7, column=0, columnspan=2, padx=10, pady=10)
+    
+    window.mainloop()
+
+if __name__ == "__main__":
+    # Configuration
+    api_key = 'AIzaSyBv-Fk-s_KCS0dJhRspi-WyfxYkEtLGEb8'  # Replace with your valid API key
+    model_name = 'gemini-1.5-flash'
+    
+    # Setup model
+    model = setup_model(api_key, model_name)
+    
+    # Start GUI
+    setup_gui()
+
+
